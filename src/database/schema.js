@@ -138,19 +138,27 @@ export async function cleanupOldData(db) {
     const oneDay = 24 * 60 * 60 * 1000;
     
     if (!lastClean || (now - parseInt(lastClean.value)) > oneDay) {
-      const cutoff = now - 7 * oneDay;
-      const deleteResult = await db.prepare(`DELETE FROM metrics_history WHERE (
-        (typeof(timestamp) = 'integer' AND timestamp < ?)
-        OR 
-        (typeof(timestamp) = 'text' AND timestamp < datetime('now', '-7 days'))
-      )`).bind(cutoff).run();
+      let totalDeleted = 0;
       
-      if (deleteResult.meta.changes > 0) {
+      // 清理所有字符串格式的时间戳（旧版本遗留数据，如 "2026-05-26 03:50:23"）
+      const strDeleteResult = await db.prepare(
+        `DELETE FROM metrics_history WHERE typeof(timestamp) = 'text'`
+      ).run();
+      totalDeleted += strDeleteResult.meta.changes || 0;
+      
+      // 清理7天前的数字格式时间戳数据
+      const cutoff = now - 7 * oneDay;
+      const intDeleteResult = await db.prepare(
+        `DELETE FROM metrics_history WHERE typeof(timestamp) = 'integer' AND timestamp < ?`
+      ).bind(cutoff).run();
+      totalDeleted += intDeleteResult.meta.changes || 0;
+      
+      if (totalDeleted > 0) {
         await db.prepare(`
           INSERT OR REPLACE INTO settings (key, value) VALUES ('last_cleanup', ?)
         `).bind(now.toString()).run();
         
-        console.log(`[Cron] 已清理 ${deleteResult.meta.changes} 条7天前的旧数据`);
+        console.log(`[Cron] 已清理 ${totalDeleted} 条旧数据（${strDeleteResult.meta.changes || 0} 条旧格式 + ${intDeleteResult.meta.changes || 0} 条过期数据）`);
       }
     }
   } catch (e) {
