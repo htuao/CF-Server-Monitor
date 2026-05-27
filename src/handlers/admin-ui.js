@@ -12,7 +12,7 @@ export async function handleAdminUI(request, env, sys) {
   
   // 获取所有服务器信息
   const { results } = await env.DB.prepare(
-    'SELECT id, name, last_updated, server_group, price, expire_date, bandwidth, traffic_limit, country FROM servers ORDER BY server_group, name'
+    'SELECT id, name, last_updated, server_group, price, expire_date, bandwidth, traffic_limit, country, is_hidden FROM servers ORDER BY server_group, name'
   ).all();
   
   const now = Date.now();
@@ -58,7 +58,7 @@ export async function handleAdminUI(request, env, sys) {
               </div>
               <div class="action-btns">
                 <button onclick="copyCmd('${s.id}')" class="btn btn-icon btn-green" title="复制命令">📋</button>
-                <button onclick="openEditModal('${s.id}', '${s.server_group||''}', '${s.price||''}', '${s.expire_date||''}', '${s.bandwidth||''}', '${s.traffic_limit||''}')" class="btn btn-icon btn-blue" title="编辑">✏️</button>
+                <button onclick="openEditModal('${s.id}', '${s.server_group||''}', '${s.price||''}', '${s.expire_date||''}', '${s.bandwidth||''}', '${s.traffic_limit||''}', '${s.is_hidden||'0'}')" class="btn btn-icon btn-blue" title="编辑">✏️</button>
                 <button onclick="deleteServer('${s.id}')" class="btn btn-icon btn-red" title="删除">🗑️</button>
               </div>
             </div>
@@ -1076,6 +1076,16 @@ export async function handleAdminUI(request, env, sys) {
           <input type="text" id="editTraffic" class="form-input" placeholder="e.g. 1TB/month">
         </div>
         
+        <div class="form-group">
+          <div class="checkbox-item" style="margin:0;">
+            <input type="checkbox" id="editHidden">
+            <label>
+              <b>Hide from Public</b><br>
+              <span style="font-size:10px;color:var(--text-muted);">Hide this server from non-logged-in users (dashboard & detail page)</span>
+            </label>
+          </div>
+        </div>
+        
         <div class="modal-footer">
           <button onclick="closeModal()" class="btn">CANCEL</button>
           <button onclick="saveEdit()" class="btn btn-primary">SAVE</button>
@@ -1258,13 +1268,14 @@ export async function handleAdminUI(request, env, sys) {
     }
     
     // 编辑弹窗
-    function openEditModal(id, group, price, expire, bw, traffic) {
+    function openEditModal(id, group, price, expire, bw, traffic, hidden) {
       document.getElementById('editId').value = id;
       document.getElementById('editGroup').value = group || 'Default';
       document.getElementById('editPrice').value = price || '免费';
       document.getElementById('editExpire').value = expire || '';
       document.getElementById('editBandwidth').value = bw || '';
       document.getElementById('editTraffic').value = traffic || '';
+      document.getElementById('editHidden').checked = hidden === '1';
       document.getElementById('editModal').style.display = 'block';
     }
     
@@ -1280,7 +1291,8 @@ export async function handleAdminUI(request, env, sys) {
         price: document.getElementById('editPrice').value,
         expire_date: document.getElementById('editExpire').value,
         bandwidth: document.getElementById('editBandwidth').value,
-        traffic_limit: document.getElementById('editTraffic').value
+        traffic_limit: document.getElementById('editTraffic').value,
+        is_hidden: document.getElementById('editHidden').checked ? '1' : '0'
       };
       
       try {

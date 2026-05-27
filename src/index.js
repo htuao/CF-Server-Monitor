@@ -4,6 +4,7 @@ import { handleAdminUI } from './handlers/admin-ui.js';
 import { handleUpdate } from './handlers/update.js';
 import { handleDashboard, handleServerDetail, handleServerAPI, handleServersAPI } from './handlers/dashboard.js';
 import { loadSettings } from './utils/settings.js';
+import { checkAuth, authResponse } from './middleware/auth.js';
 
 let dbInitialized = false;
 
@@ -50,11 +51,23 @@ export default {
 
     // 服务器详情 API（24小时历史数据）
     if (request.method === 'GET' && url.pathname === '/api/history') {
+      if (sys.is_public !== 'true' && !checkAuth(request, env)) {
+        return authResponse(sys.site_title);
+      }
+      
       const id = url.searchParams.get('id');
       const metric = url.searchParams.get('metric') || 'cpu';
       const hours = parseFloat(url.searchParams.get('hours') || '24');
       
       if (!id) return new Response('Missing ID', { status: 400 });
+      
+      const isLoggedIn = checkAuth(request, env);
+      let serverQuery = 'SELECT id FROM servers WHERE id = ?';
+      if (!isLoggedIn) {
+        serverQuery += " AND is_hidden != '1'";
+      }
+      const server = await env.DB.prepare(serverQuery).bind(id).first();
+      if (!server) return new Response('Not Found', { status: 404 });
       
       const now = Date.now();
       const cutoff = now - (hours * 60 * 60 * 1000);
@@ -92,10 +105,22 @@ export default {
 
     // 服务器详情 API（一次性获取所有指标历史数据）
     if (request.method === 'GET' && url.pathname === '/api/history/all') {
+      if (sys.is_public !== 'true' && !checkAuth(request, env)) {
+        return authResponse(sys.site_title);
+      }
+      
       const id = url.searchParams.get('id');
       const hours = parseFloat(url.searchParams.get('hours') || '24');
       
       if (!id) return new Response('Missing ID', { status: 400 });
+      
+      const isLoggedIn = checkAuth(request, env);
+      let serverQuery = 'SELECT id FROM servers WHERE id = ?';
+      if (!isLoggedIn) {
+        serverQuery += " AND is_hidden != '1'";
+      }
+      const server = await env.DB.prepare(serverQuery).bind(id).first();
+      if (!server) return new Response('Not Found', { status: 404 });
       
       const now = Date.now();
       const cutoff = now - (hours * 60 * 60 * 1000);

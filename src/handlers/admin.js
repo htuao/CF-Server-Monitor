@@ -71,7 +71,7 @@ export async function handleAdminAPI(request, env, sys) {
     } 
     else if (data.action === 'edit') {
       // 编辑服务器信息
-      const { id, server_group, price, expire_date, bandwidth, traffic_limit } = data;
+      const { id, server_group, price, expire_date, bandwidth, traffic_limit, is_hidden } = data;
       if (!id) {
         return new Response(JSON.stringify({ error: '缺少服务器 ID' }), { 
           status: 400,
@@ -81,14 +81,15 @@ export async function handleAdminAPI(request, env, sys) {
       
       await env.DB.prepare(`
         UPDATE servers 
-        SET server_group = ?, price = ?, expire_date = ?, bandwidth = ?, traffic_limit = ? 
+        SET server_group = ?, price = ?, expire_date = ?, bandwidth = ?, traffic_limit = ?, is_hidden = ? 
         WHERE id = ?
       `).bind(
         server_group || '默认分组', 
         price || '免费', 
         expire_date || '', 
         bandwidth || '', 
-        traffic_limit || '', 
+        traffic_limit || '',
+        is_hidden || '0',
         id
       ).run();
       

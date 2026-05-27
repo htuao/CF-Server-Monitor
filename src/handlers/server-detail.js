@@ -1,8 +1,20 @@
 import { formatBytes, getPingColor } from '../utils/format.js';
 import { getThemeStyles, getFooterHtml } from '../themes/styles.js';
+import { checkAuth, authResponse } from '../middleware/auth.js';
 
 export async function handleServerDetail(request, env, sys, viewId) {
-  const server = await env.DB.prepare('SELECT * FROM servers WHERE id = ?').bind(viewId).first();
+  if (sys.is_public !== 'true' && !checkAuth(request, env)) {
+    return authResponse(sys.site_title);
+  }
+  
+  const isLoggedIn = checkAuth(request, env);
+  
+  let query = 'SELECT * FROM servers WHERE id = ?';
+  if (!isLoggedIn) {
+    query += " AND is_hidden != '1'";
+  }
+  
+  const server = await env.DB.prepare(query).bind(viewId).first();
   if (!server) return new Response('Server not found', { status: 404 });
 
   const now = Date.now();
@@ -572,7 +584,7 @@ export async function handleServerDetail(request, env, sys, viewId) {
           <span class="sysinfo-label">🔼 Traffic Out</span>
           <span class="sysinfo-value" id="val-traffic-out">${formatBytes(server.monthly_tx)}</span>
         </div>
-        <div class="sysinfo-item" style="grid-column: span 2;">
+        <div class="sysinfo-item">
           <span class="sysinfo-label">⏰ Last Report</span>
           <span class="sysinfo-value" id="val-last-report">${new Date(serverLastUpdated).toLocaleString(undefined, { hour12: false })}</span>
         </div>

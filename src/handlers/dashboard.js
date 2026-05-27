@@ -13,7 +13,13 @@ export async function handleServerAPI(request, env, sys) {
   
   if (!id) return new Response('Missing ID', { status: 400 });
   
-  const server = await env.DB.prepare('SELECT * FROM servers WHERE id = ?').bind(id).first();
+  const isLoggedIn = checkAuth(request, env);
+  let query = 'SELECT * FROM servers WHERE id = ?';
+  if (!isLoggedIn) {
+    query += " AND is_hidden != '1'";
+  }
+  
+  const server = await env.DB.prepare(query).bind(id).first();
   if (!server) return new Response('Not Found', { status: 404 });
   
   return new Response(JSON.stringify(server), { 
@@ -26,9 +32,15 @@ export async function handleServersAPI(request, env, sys) {
     return authResponse(sys.site_title);
   }
 
-  const { results } = await env.DB.prepare(
-    'SELECT * FROM servers ORDER BY server_group, name'
-  ).all();
+  const isLoggedIn = checkAuth(request, env);
+  
+  let query = 'SELECT * FROM servers';
+  if (!isLoggedIn) {
+    query += " WHERE is_hidden != '1'";
+  }
+  query += ' ORDER BY server_group, name';
+  
+  const { results } = await env.DB.prepare(query).all();
   
   const now = Date.now();
   const globalOnline = results.filter(s => (now - new Date(s.last_updated).getTime()) < 120000).length;
@@ -87,9 +99,15 @@ export async function handleDashboard(request, env, sys) {
     return authResponse(sys.site_title);
   }
 
-  const { results } = await env.DB.prepare(
-    'SELECT * FROM servers ORDER BY server_group, name'
-  ).all();
+  const isLoggedIn = checkAuth(request, env);
+  
+  let query = 'SELECT * FROM servers';
+  if (!isLoggedIn) {
+    query += " WHERE is_hidden != '1'";
+  }
+  query += ' ORDER BY server_group, name';
+  
+  const { results } = await env.DB.prepare(query).all();
   
   const now = Date.now();
 
