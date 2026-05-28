@@ -180,6 +180,7 @@ export async function handleServerDetail(request, env, sys, viewId) {
       border: 1px solid var(--border-color);
       border-radius: 4px;
       padding: 3px;
+      opacity: 0;
     }
     
     .time-btn {
@@ -1254,6 +1255,8 @@ export async function handleServerDetail(request, env, sys, viewId) {
         appendDataToChart(charts.ping, 3, dataTimestamp, data.ping_bd);
         
         document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+
+        document.getElementById('time-selector').style.opacity = 1;
         
       } catch (e) {
         console.error('[ERROR] 获取状态失败:', e);
